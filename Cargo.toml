@@ -1,0 +1,4 @@
+[package]
+name = "git-hive-protocol"
+version = "0.1.0"
+authors = ["Mrhwick <matt.hardwick@getbellhops.com>"]
