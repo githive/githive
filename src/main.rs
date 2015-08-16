@@ -1,5 +1,7 @@
 extern crate rmp as msgpack;
 
+mod listener;
+
 use std::io;
 use std::io::prelude::*;
 use std::net::{TcpStream, TcpListener};
@@ -12,24 +14,15 @@ fn handle_client(mut stream: TcpStream) {
 
 fn main() {
 
-    thread::spawn(move|| {
-        let listener = TcpListener::bind("127.0.0.1:33017").unwrap();
-        for stream in listener.incoming() {
-            match stream {
-                Ok(stream) => {
-                    thread::spawn(move|| {
-                        // connection succeeded
-                        handle_client(stream)
-                    });
-                }
-                Err(e) => {println!("error condition {}", e);}
-            }
-        }
-    });
+    // Spawn threads to listen for incoming requests.
+    listener::start_listening_for_peers(33317);
 
-    let mut stream = TcpStream::connect("127.0.0.1:33017").unwrap();
+    let mut stream = TcpStream::connect(("0.0.0.0", 33317)).unwrap();
     
     let _ = stream.write(&[1]);
     
     let _ = stream.read(&mut [0; 128]);
+    loop {
+        // Add code here
+    }
 }
