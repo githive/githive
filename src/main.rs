@@ -14,15 +14,24 @@ fn handle_client(mut stream: TcpStream) {
 
 fn main() {
 
-    // Spawn threads to listen for incoming requests.
+    // Index file system objects to build local model.
+
+    // Announce existence to tracker server, begin spawning peer connections.
+
+    // Start a service to spawn peer connections on incoming requests.
     listener::start_listening_for_peers(33317);
+
+
+
+    // The following code initiates a connection and sends hello world.
 
     let mut stream = TcpStream::connect(("0.0.0.0", 33317)).unwrap();
     
-    let _ = stream.write(&[1]);
+    let message = String::from("hello world");
+
+    let _ = stream.write(&message.into_bytes());
     
     let _ = stream.read(&mut [0; 128]);
     loop {
-        // Add code here
     }
 }
