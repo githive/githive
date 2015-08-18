@@ -1,7 +1,9 @@
 [package]
 name = "git-hive-protocol"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Mrhwick <matt.hardwick@getbellhops.com>"]
 
-[dependencies.rmp]
+[dependencies]
+time = "0.1.32"
 rmp = "0.5.1"
+byteorder = "0.3.11"
