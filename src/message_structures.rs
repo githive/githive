@@ -65,7 +65,7 @@ impl Message {
 
 				let number_of_directories = try!(read_bytes_from_stream(&stream, 1));
 
-				for i in 0..number_of_directories[0] {
+				for _ in 0..number_of_directories[0] {
 					let directory_path_length = try!(read_bytes_from_stream(&stream, 1));
 					let directory_path = try!(read_bytes_from_stream(&stream, directory_path_length[0] as u32));
 
@@ -131,7 +131,7 @@ impl Message {
 
 	pub fn serialize(self) -> Result<Vec<u8>, Error> {
 		match self {
-			Message::SwarmConfigurationMessage{client_name: client_name, client_version: client_version, repositories: repositories} => {
+			Message::SwarmConfigurationMessage{client_name, client_version, repositories} => {
 
 				let mut message_payload = vec![];
 				// Client & Version Information
@@ -148,7 +148,7 @@ impl Message {
 
 				Ok(message_payload)
 			},
-			Message::RepositoryIndexMessage{directories: directories} => {
+			Message::RepositoryIndexMessage{directories} => {
 				let mut message_payload = vec![];
 				// Directory Listings
 				message_payload.push(directories.len() as u8);
@@ -162,7 +162,7 @@ impl Message {
 
 	pub fn print_details(self){
 		match self {
-			Message::SwarmConfigurationMessage{client_name: client_name, client_version: client_version, repositories: repositories} => {
+			Message::SwarmConfigurationMessage{client_name, client_version, repositories} => {
 				println!("client name: {:?}", String::from_utf8(client_name).unwrap());
 				println!("client version: {:?}", String::from_utf8(client_version).unwrap());
 				
@@ -172,7 +172,7 @@ impl Message {
 					repo.print_details();
 				}
 			},
-			Message::RepositoryIndexMessage{directories: directories} => {
+			Message::RepositoryIndexMessage{directories} => {
 				for directory in directories {
 					directory.print_details();
 				}

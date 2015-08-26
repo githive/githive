@@ -1,15 +1,7 @@
-extern crate time;
-
-use self::time::Timespec;
-
-use std::io::{Error, ErrorKind};
-use std::io::Read;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpListener;
 use std::thread;
 use std::thread::JoinHandle;
-use std::string::String;
 
-use streamutils::read_bytes_from_stream;
 use streamutils::TcpStreamPump;
 
 pub fn start_listening_for_peers(port: u16) -> JoinHandle<()> {
@@ -19,7 +11,7 @@ pub fn start_listening_for_peers(port: u16) -> JoinHandle<()> {
 			match stream {
 				Ok(s) => {TcpStreamPump::start_pumping_message_to_channel(s); Ok(())},
 				Err(e) => Err(e),
-			};
+			}.unwrap();
 		}
 	})
 }

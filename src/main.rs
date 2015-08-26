@@ -4,13 +4,16 @@ extern crate byteorder;
 
 use byteorder::{BigEndian, WriteBytesExt, ByteOrder};
 
-mod listener;
-mod message_structures;
-mod streamutils;
-
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::string::String;
+
+mod listener;
+mod message_structures;
+mod streamutils;
+mod shared_constants;
+
+use shared_constants::{CLIENT_NAME, CLIENT_VERSION, PROTOCOL_NAME, PROTOCOL_VERSION};
 
 fn main() {
 
@@ -24,22 +27,13 @@ fn main() {
     // The following code initiates a connection and sends hello world.
 
     let mut stream = TcpStream::connect(("0.0.0.0", 33317)).unwrap();
-    
-    let protocol_name = String::from("Git Hive Protocol");
-    let protocol_version = String::from("0.0.1");
-    let client_name = String::from("Git Hive");
-    let client_version = String::from("0.0.1");
 
     let repo_path = String::from("/githive/githive-protocol");
     let repo_path_two = String::from("/githive/githive-client");
 
-        // protocol_name: protocol_name.into_bytes(),
-        // protocol_version: protocol_version.into_bytes(),
-        // message_id: 51733 as u16,
-        // message_type: 0 as u16,
     let message = message_structures::Message::SwarmConfigurationMessage{
-        client_name: client_name.into_bytes(),
-        client_version: client_version.into_bytes(),
+        client_name: String::from(CLIENT_NAME).into_bytes(),
+        client_version: String::from(CLIENT_VERSION).into_bytes(),
         repositories: vec![
             message_structures::RepositoryInformation{
                 path: repo_path.into_bytes(),
@@ -51,10 +45,10 @@ fn main() {
     };
 
     let mut message_metadata = vec![];
-    message_metadata.push(protocol_name.len() as u8);
-    message_metadata.extend(protocol_name.into_bytes());
-    message_metadata.push(protocol_version.len() as u8);
-    message_metadata.extend(protocol_version.into_bytes());
+    message_metadata.push(PROTOCOL_NAME.len() as u8);
+    message_metadata.extend(String::from(PROTOCOL_NAME).into_bytes());
+    message_metadata.push(PROTOCOL_VERSION.len() as u8);
+    message_metadata.extend(String::from(PROTOCOL_VERSION).into_bytes());
 
     let mut message_id_buf = vec![];
     message_id_buf.write_u16::<BigEndian>(51733 as u16).unwrap();
@@ -66,7 +60,7 @@ fn main() {
 
     message_metadata.extend(message.serialize().unwrap());
 
-    stream.write_all(&message_metadata);
+    stream.write_all(&message_metadata).unwrap();
 
     let protocol_name = String::from("Git Hive Protocol");
     let protocol_version = String::from("0.0.1");
@@ -115,7 +109,7 @@ fn main() {
 
     message_metadata.extend(message.serialize().unwrap());
 
-    stream.write_all(&message_metadata);
+    stream.write_all(&message_metadata).unwrap();
 
     // let _ = stream.write_all(&message.serialize());
 

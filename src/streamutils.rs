@@ -8,6 +8,7 @@ use std::io::Read;
 use std::net::TcpStream;
 
 use message_structures::Message;
+use shared_constants::{PROTOCOL_NAME, PROTOCOL_VERSION};
 
 pub fn read_bytes_from_stream(stream: &TcpStream, number_of_bytes: u32) -> Result<Vec<u8>, Error> {
 	let mut buffer = vec![];
@@ -49,14 +50,18 @@ impl TcpStreamPump {
 		// Check protocol name and version
 
 		let protocol_name_length = try!(read_bytes_from_stream(&self.stream, 1));
-		let protocol_name = try!(read_bytes_from_stream(&self.stream, protocol_name_length[0] as u32));
+		let protocol_name = String::from_utf8(try!(read_bytes_from_stream(&self.stream, protocol_name_length[0] as u32))).unwrap();
 		let protocol_version_length = try!(read_bytes_from_stream(&self.stream, 1));
-		let protocol_version = try!(read_bytes_from_stream(&self.stream, protocol_version_length[0] as u32));
+		let protocol_version = String::from_utf8(try!(read_bytes_from_stream(&self.stream, protocol_version_length[0] as u32))).unwrap();
+
+		if protocol_name != PROTOCOL_NAME || protocol_version != PROTOCOL_VERSION {
+			panic!("Peer sent message with invalid protocol name or version. Expected protocol: '{}', '{}'", PROTOCOL_NAME, PROTOCOL_VERSION);
+		}
 
 		println!("Got some meta data!\n");
 
-		println!("protocol name: {:?}", String::from_utf8(protocol_name));
-		println!("protocol version: {:?}", String::from_utf8(protocol_version));
+		println!("protocol name: {:?}", protocol_name);
+		println!("protocol version: {:?}", protocol_version);
 
 		// Get message identifier and type.
 
