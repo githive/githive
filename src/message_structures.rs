@@ -1,107 +1,200 @@
 extern crate byteorder;
 extern crate time;
 
-use std::ops::{Shl, Shr};
-
-use self::byteorder::{BigEndian, WriteBytesExt};
+use self::byteorder::{BigEndian, WriteBytesExt, ByteOrder};
 use self::time::Timespec;
 
-pub trait Messageable {
-	fn serialize(&self) -> Vec<u8>;
+use std::io::{Error, ErrorKind};
+use std::net::TcpStream;
+
+use streamutils::read_bytes_from_stream;
+
+pub enum Message {
+	SwarmConfigurationMessage {
+		client_name: Vec<u8>,
+		client_version: Vec<u8>,
+		repositories: Vec<RepositoryInformation>,
+	},
+	RepositoryIndexMessage {
+		directories: Vec<DirectoryInformation>,
+	},
 }
 
-pub struct Message<'a> {
-	pub protocol_name: Vec<u8>,
-    pub protocol_version: Vec<u8>,
-    pub message_id: u16,
-    pub message_type: u16,
-    pub real_message: &'a (Messageable + 'a),
-}
+impl Message {
+	pub fn from_stream(message_type: u16, stream: &TcpStream) -> Result<(Message), Error> {
+		match message_type {
+			0 => {
 
-impl<'p> Messageable for Message<'p> {
-	fn serialize(&self) -> Vec<u8> {
-		let mut message_payload = vec![];
+				// Get client name & version information.
 
-		// Protocol Name
+				let client_name_length = try!(read_bytes_from_stream(&stream, 1));
+				let client_name = try!(read_bytes_from_stream(&stream, client_name_length[0] as u32));
+				let client_version_length = try!(read_bytes_from_stream(&stream, 1));
+				let client_version = try!(read_bytes_from_stream(&stream, client_version_length[0] as u32));
 
-		message_payload.push(self.protocol_name.len() as u8);
-		message_payload.extend(self.protocol_name.iter().cloned());
-		
-		// Protocol Version
+				// Get repository information.
 
-		message_payload.push(self.protocol_version.len() as u8);
-		message_payload.extend(self.protocol_version.iter().cloned());
+				let mut repositories = vec![];
 
-		// Message Identifier
+				let number_of_repositories = try!(read_bytes_from_stream(&stream, 1));
 
-		let mut message_id_buf = vec![];
-		message_id_buf.write_u16::<BigEndian>(self.message_id).unwrap();
-		message_payload.extend(message_id_buf.into_iter());
-		
-		// Message Type
+				for _ in 0..number_of_repositories[0] {
+					let repository_path_length = try!(read_bytes_from_stream(&stream, 1));
+					let repository_path = try!(read_bytes_from_stream(&stream, repository_path_length[0] as u32));
 
-		let mut message_type_buf = vec![];
-		message_type_buf.write_u16::<BigEndian>(self.message_type).unwrap();
-		message_payload.extend(message_type_buf.into_iter());
+					repositories.push(
+						RepositoryInformation {
+							path: repository_path,
+						}
+					);
+				}
 
-		// Actual Message Serialization
+				Ok(
+					Message::SwarmConfigurationMessage {
+						client_name: client_name,
+						client_version: client_version,
+						repositories: repositories,
+					}
+				)
+			},
+			1 => {
 
-		message_payload.extend(self.real_message.serialize());
-		return message_payload;
-	}
-}
+				// Get Directory Information
 
-pub struct SwarmConfigurationMessage {
-	pub client_name: Vec<u8>,
-	pub client_version: Vec<u8>,
-	pub repositories: Vec<RepositoryInformation>,
-}
+				let mut directories = vec![];
 
-impl Messageable for SwarmConfigurationMessage {
-	fn serialize(&self) -> Vec<u8> {
-		let mut message_payload = vec![];
-		// Client & Version Information
-		message_payload.push(self.client_name.len() as u8);
-		message_payload.extend(self.client_name.iter().cloned());
-		message_payload.push(self.client_version.len() as u8);
-		message_payload.extend(self.client_version.iter().cloned());
+				let number_of_directories = try!(read_bytes_from_stream(&stream, 1));
 
-		// Repo Information.
-		message_payload.push(self.repositories.len() as u8);
-		for repo in &self.repositories {
-			message_payload.extend(repo.serialize());
+				for i in 0..number_of_directories[0] {
+					let directory_path_length = try!(read_bytes_from_stream(&stream, 1));
+					let directory_path = try!(read_bytes_from_stream(&stream, directory_path_length[0] as u32));
+
+					let mut files = vec![];
+
+					let number_of_files = try!(read_bytes_from_stream(&stream, 1));
+
+					for _ in 0..number_of_files[0] {
+						let length_filename = try!(read_bytes_from_stream(&stream, 1));
+						let filename = try!(read_bytes_from_stream(&stream, length_filename[0] as u32));
+
+						let timespec_seconds = BigEndian::read_i64(&try!(read_bytes_from_stream(&stream, 8)));
+						let timespec_nanoseconds = BigEndian::read_i32(&try!(read_bytes_from_stream(&stream, 4)));
+
+						let version_counter = BigEndian::read_u32(&try!(read_bytes_from_stream(&stream, 4)));
+						let local_version = BigEndian::read_u32(&try!(read_bytes_from_stream(&stream, 4)));
+
+						let mut blocks = vec![];
+
+						let number_of_blocks = try!(read_bytes_from_stream(&stream, 1));
+
+						for _ in 0..number_of_blocks[0] {
+
+							let size = BigEndian::read_u32(&try!(read_bytes_from_stream(&stream, 4)));
+
+							let hash_length = try!(read_bytes_from_stream(&stream, 1));
+							let hash = try!(read_bytes_from_stream(&stream, hash_length[0] as u32));
+
+							blocks.push(
+								BlockInformation{
+									size: size,
+									hash: hash,
+								}
+							)
+
+						}
+
+						files.push(
+							FileInformation{
+								filename: filename,
+								modified: Timespec::new(timespec_seconds, timespec_nanoseconds),
+								version: version_counter,
+								local_version: local_version,
+								blocks: blocks,
+							}
+						)
+
+					}
+					directories.push(DirectoryInformation{
+						directory_path: directory_path,
+						files: files,
+					})
+				}
+				Ok(
+					Message::RepositoryIndexMessage{
+						directories: directories,
+					}
+				)
+			}
+			_ => return Err(Error::new(ErrorKind::Other, "Unknown Message Type")),
 		}
+	}
 
-		return message_payload;
+	pub fn serialize(self) -> Result<Vec<u8>, Error> {
+		match self {
+			Message::SwarmConfigurationMessage{client_name: client_name, client_version: client_version, repositories: repositories} => {
+
+				let mut message_payload = vec![];
+				// Client & Version Information
+				message_payload.push(client_name.len() as u8);
+				message_payload.extend(client_name.iter().cloned());
+				message_payload.push(client_version.len() as u8);
+				message_payload.extend(client_version.iter().cloned());
+
+				// Repo Information.
+				message_payload.push(repositories.len() as u8);
+				for repo in repositories {
+					message_payload.extend(repo.serialize());
+				}
+
+				Ok(message_payload)
+			},
+			Message::RepositoryIndexMessage{directories: directories} => {
+				let mut message_payload = vec![];
+				// Directory Listings
+				message_payload.push(directories.len() as u8);
+				for directory in directories {
+					message_payload.extend(directory.serialize());
+				}
+				Ok(message_payload)
+			},
+		}
+	}
+
+	pub fn print_details(self){
+		match self {
+			Message::SwarmConfigurationMessage{client_name: client_name, client_version: client_version, repositories: repositories} => {
+				println!("client name: {:?}", String::from_utf8(client_name).unwrap());
+				println!("client version: {:?}", String::from_utf8(client_version).unwrap());
+				
+				println!("Number of repository information structures: {:?}", repositories.len());
+
+				for repo in repositories {
+					repo.print_details();
+				}
+			},
+			Message::RepositoryIndexMessage{directories: directories} => {
+				for directory in directories {
+					directory.print_details();
+				}
+			},
+		}
 	}
 }
 
-pub struct RepositoryInformation {
+pub struct RepositoryInformation{
 	pub path: Vec<u8>,
 }
 
-impl Messageable for RepositoryInformation {
-	fn serialize(&self) -> Vec<u8> {
+impl RepositoryInformation{
+	fn serialize(&self) -> Vec<u8>{
 		let mut message_payload = vec![];
 		message_payload.push(self.path.len() as u8);
 		message_payload.extend(self.path.iter().cloned());
 		return message_payload;
 	}
-}
 
-pub struct RepositoryIndexMessage {
-	pub directories: Vec<DirectoryInformation>,
-}
-
-impl Messageable for RepositoryIndexMessage {
-	fn serialize(&self) -> Vec<u8> {
-		let mut message_payload = vec![];
-		// Directory Listings
-		message_payload.push(self.directories.len() as u8);
-		for directory in &self.directories {
-			message_payload.extend(directory.serialize());
-		}
-		return message_payload;
+	fn print_details(self){
+		println!("Repository Path: {:?}", String::from_utf8(self.path).unwrap());
 	}
 }
 
@@ -110,7 +203,7 @@ pub struct DirectoryInformation {
 	pub files: Vec<FileInformation>,
 }
 
-impl Messageable for DirectoryInformation {
+impl DirectoryInformation {
 	fn serialize(&self) -> Vec<u8> {
 		let mut message_payload = vec![];
 		message_payload.push(self.directory_path.len() as u8);
@@ -122,6 +215,14 @@ impl Messageable for DirectoryInformation {
 		}
 		return message_payload;
 	}
+
+	fn print_details(self){
+		println!("Directory Path: {:?}", String::from_utf8(self.directory_path).unwrap());
+
+		for file in self.files{
+			file.print_details();
+		}
+	}
 }
 
 pub struct FileInformation {
@@ -132,7 +233,7 @@ pub struct FileInformation {
 	pub blocks: Vec<BlockInformation>,
 }
 
-impl Messageable for FileInformation {
+impl FileInformation {
 	fn serialize(&self) -> Vec<u8> {
 		let mut message_payload = vec![];
 
@@ -176,6 +277,19 @@ impl Messageable for FileInformation {
 
 		return message_payload;
 	}
+
+	fn print_details(self){
+		println!("Filename: {:?}", String::from_utf8(self.filename).unwrap());
+
+		println!("Modified Time: {:?}", time::strftime("%F %T", &time::at(self.modified)).unwrap());
+
+		println!("Version Counter: {:?}", self.version);
+		println!("Local Version: {:?}", self.local_version);
+
+		for block in self.blocks {
+			block.print_details();
+		}
+	}
 }
 
 pub struct BlockInformation {
@@ -183,7 +297,7 @@ pub struct BlockInformation {
 	pub hash: Vec<u8>,
 }
 
-impl Messageable for BlockInformation {
+impl BlockInformation {
 	fn serialize(&self) -> Vec<u8> {
 		let mut message_payload = vec![];
 
@@ -199,6 +313,11 @@ impl Messageable for BlockInformation {
 		message_payload.extend(self.hash.iter().cloned());
 
 		return message_payload;
+	}
+
+	fn print_details(self){
+		println!("Size: {:?}", self.size);
+		println!("Hash: {:?}", String::from_utf8(self.hash).unwrap());
 	}
 }
 
