@@ -10,6 +10,7 @@ matrix:
 
 after_success:
     - |
+        [ $TRAVIS_RUST_VERSION = stable ] &&
         [ $TRAVIS_BRANCH = release ] &&
         [ $TRAVIS_PULL_REQUEST = false ] &&
         cargo publish --token "$CRATES_IO_TOKEN"
