@@ -9,6 +9,6 @@ matrix:
         - rust: nightly
 
 after_success:
-	on:
-		branch: release
-			- cargo publish --token "$CRATES_IO_TOKEN"
+    on:
+        branch: release
+            - cargo publish --token "$CRATES_IO_TOKEN"
