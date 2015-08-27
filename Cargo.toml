@@ -1,7 +1,15 @@
 [package]
 name = "git-hive-protocol"
-version = "0.2.0"
-authors = ["Mrhwick <matt.hardwick@getbellhops.com>"]
+description = """
+A simple library for managing a custom Block Exchange Protocol (BEP).
+This BEP manages git repository data and ensures synchronization across peers.
+"""
+license = "WTFPL"
+documentation = "http://docs.githive.io"
+version = "0.2.1"
+authors = [
+	"Matthew Hardwick <MatthewRHardwick@gmail.com>",
+]
 
 [dependencies]
 time = "0.1.32"

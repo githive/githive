@@ -3,6 +3,12 @@ rust:
     - stable
     - beta
     - nightly
+
 matrix:
     allow_failure:
         - rust: nightly
+
+after_success:
+	on:
+		branch: release
+			- cargo publish --token "$CRATES_IO_TOKEN"
