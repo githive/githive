@@ -4,9 +4,9 @@ extern crate time;
 use self::byteorder::{BigEndian, WriteBytesExt, ByteOrder};
 use self::time::Timespec;
 
-use std::io::{Error, ErrorKind};
 use std::net::TcpStream;
 
+use errors::Error;
 use streamutils::read_bytes_from_stream;
 
 pub enum Message {
@@ -125,7 +125,7 @@ impl Message {
 					}
 				)
 			}
-			_ => return Err(Error::new(ErrorKind::Other, "Unknown Message Type")),
+			_ => return Err(Error::UnknownMessageType),
 		}
 	}
 
@@ -193,7 +193,7 @@ impl RepositoryInformation{
 		return message_payload;
 	}
 
-	fn print_details(self){
+	pub fn print_details(self){
 		println!("Repository Path: {:?}", String::from_utf8(self.path).unwrap());
 	}
 }
