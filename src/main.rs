@@ -20,9 +20,7 @@ fn main() {
     // Start a service to spawn peer connections on incoming requests.
     listener::start_listening_for_peers(33317);
 
-    let mut stream = TcpStream::connect(("0.0.0.0", 33317)).unwrap();
-
-    peer_connection::initiate_outgoing_peer_connection(stream);
+    peer_connection::initiate_outgoing_peer_connection(&String::from("0.0.0.0"), 33317);
 
     loop {
     }

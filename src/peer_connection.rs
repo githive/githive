@@ -11,7 +11,8 @@ use message_structures;
 use streamutils;
 use shared_constants::{CLIENT_NAME, CLIENT_VERSION, PROTOCOL_NAME, PROTOCOL_VERSION};
 
-pub fn initiate_outgoing_peer_connection (stream: TcpStream) -> Result<(), Error> {
+pub fn initiate_outgoing_peer_connection (ip_string: &str, port_number: u16) -> Result<(), Error> {
+    let mut stream = try!(TcpStream::connect((ip_string, port_number)));
 	PeerConnection::initiate_outgoing_peer_connection(stream)
 }
 
@@ -97,8 +98,7 @@ impl PeerConnection {
 
 	fn send_swarm_config(&mut self) -> Result<(), Error> {
 
-	    let repo_path = String::from("/githive/githive-protocol");
-	    let repo_path_two = String::from("/githive/githive-client");
+	    let repo_path = String::from("/test/repo");
 
 	    let message = message_structures::Message::SwarmConfigurationMessage{
 	        client_name: String::from(CLIENT_NAME).into_bytes(),
@@ -107,9 +107,6 @@ impl PeerConnection {
 	            message_structures::RepositoryInformation{
 	                path: repo_path.into_bytes(),
 	            },
-	            message_structures::RepositoryInformation{
-	                path: repo_path_two.into_bytes(),
-	            }
 	        ],
 	    };
 
@@ -145,6 +142,14 @@ impl PeerConnection {
 				repositories,
 			} => {
 				println!("Received Swarm Config.");
+
+				/* 
+				Here is where we would establish which repositories we are interested in for the
+				purposes of this client connection. In the first proof of concept, this will be a
+				single "repository", but in the future we'll allow peers to interact over multiple
+				collections of data.
+				*/
+
 				println!("Interested in repos: ");
 				for repo in repositories {
 					repo.print_details();	
