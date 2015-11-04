@@ -10,9 +10,10 @@ use errors::Error;
 use message_structures;
 use streamutils;
 use shared_constants::{CLIENT_NAME, CLIENT_VERSION, PROTOCOL_NAME, PROTOCOL_VERSION};
+use file_manager::SingleFileManager;
 
 pub fn initiate_outgoing_peer_connection (ip_string: &str, port_number: u16) -> Result<(), Error> {
-    let mut stream = try!(TcpStream::connect((ip_string, port_number)));
+    let stream = try!(TcpStream::connect((ip_string, port_number)));
 	PeerConnection::initiate_outgoing_peer_connection(stream)
 }
 
@@ -70,14 +71,51 @@ impl PeerConnection {
 		let stream_clone = self.stream.try_clone().unwrap();
 		let stream_pump_thread = thread::spawn(move || streamutils::TcpStreamPump::start_pumping_message_to_channel(stream_clone, tx_clone));
 
+		let mut repositories = vec![];
+
 		if is_incoming {
 			// Accept incoming SwarmConfigurationMessage here, before sending our own.
-			try!(self.receive_swarm_config());
+			repositories = try!(self.receive_swarm_config());
 			try!(self.send_swarm_config());
 		} else {
 			// Initiate the connection with a SwarmConfigurationMessage, and wait for the incoming one.
 			try!(self.send_swarm_config());
-			try!(self.receive_swarm_config());
+			repositories = try!(self.receive_swarm_config());
+		}
+
+		let our_repos = vec![String::from("/test/repo"), String::from("/test/some-other-repo")];
+
+		let repo_paths: Vec<String> = repositories
+			.iter()
+			.map(|repo| String::from_utf8(repo.path.clone()).unwrap())
+			.collect();
+
+		let mut shared_repos = vec![];
+
+		println!("We share these repositories in common: ");
+
+		for single_repo in our_repos {
+			if repo_paths.contains(&single_repo) {
+				println!("{:?}", &single_repo);
+
+				shared_repos.push(single_repo);
+			}	
+		}
+
+		/*
+		Here, we will likely have the data folder already indexed. If that were the case, we would
+		merely need to announce the indexing metadata to the other client. As it stands, we will need
+		to do indexing directly in place. 
+		*/
+
+		for single_repo in shared_repos {
+			let mut repo_data_path = single_repo.clone();
+			repo_data_path.remove(0);
+			repo_data_path.push('/');
+			repo_data_path.push_str(&String::from("test_file.txt"));
+			if is_incoming {
+				SingleFileManager::new(&repo_data_path);	
+			}
 		}
 
 		// Process additional message until we're told to choke.
@@ -131,10 +169,10 @@ impl PeerConnection {
 	    Ok(())
 	}
 
-	fn receive_swarm_config(&mut self) -> Result<(), Error> {
+	fn receive_swarm_config(&mut self) -> Result<Vec<message_structures::RepositoryInformation>, Error> {
 		// Let's attempt to get a SwarmConfigurationMessage out of the channel.
 
-		let mut swarm_config_message = try!(self.rx.recv());
+		let swarm_config_message = try!(self.rx.recv());
 		match swarm_config_message {
 			message_structures::Message::SwarmConfigurationMessage{
 				client_name,
@@ -150,19 +188,25 @@ impl PeerConnection {
 				collections of data.
 				*/
 
-				println!("Interested in repos: ");
+				let mut repos = vec![];
+
 				for repo in repositories {
-					repo.print_details();	
+					repos.push(repo);	
 				}
+				return Ok(repos);
 			},
 			_ => return Err(Error::NotSwarmConfigurationMessage),
 		}
-
-		Ok(())
 	}
 
 	fn process_message(&mut self, message: message_structures::Message) -> Result<(), Error> {
-		message.print_details();
+		match message {
+			message_structures::Message::RepositoryIndexMessage{
+				directories,
+			} => println!("Got a repo index message."),
+			_ => return Err(Error::UnknownMessageType),
+		}
+		// message.print_details();
 		Ok(())
 	}
 }
