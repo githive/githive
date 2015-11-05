@@ -9,6 +9,7 @@ mod streamutils;
 mod shared_constants;
 mod peer_connection;
 mod file_manager;
+mod repositories;
 
 fn main() {
 
