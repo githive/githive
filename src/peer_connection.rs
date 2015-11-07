@@ -11,6 +11,7 @@ use message_structures;
 use streamutils;
 use shared_constants::{CLIENT_NAME, CLIENT_VERSION, PROTOCOL_NAME, PROTOCOL_VERSION};
 use file_manager::SingleFileManager;
+use repositories::{OwnerTree, RepositoryTree};
 
 pub fn initiate_outgoing_peer_connection (ip_string: &str, port_number: u16) -> Result<(), Error> {
     let stream = try!(TcpStream::connect((ip_string, port_number)));
@@ -83,7 +84,21 @@ impl PeerConnection {
 			repositories = try!(self.receive_swarm_config());
 		}
 
-		let our_repos = vec![String::from("/test/repo"), String::from("/test/some-other-repo")];
+		/*
+		Instead of using static repository names here, let's pull the repos this client is interested
+		in from the file system as a tree-like structure.
+		*/
+
+		let mut x = vec![];
+
+		let mut y = OwnerTree{
+			owner: String::from("test"),
+			repositories: vec![],
+		};
+
+		y.add_repo(String::from("repo"));
+
+		x.push(y);
 
 		let repo_paths: Vec<String> = repositories
 			.iter()
@@ -94,12 +109,14 @@ impl PeerConnection {
 
 		println!("We share these repositories in common: ");
 
-		for single_repo in our_repos {
-			if repo_paths.contains(&single_repo) {
-				println!("{:?}", &single_repo);
+		for owner in x {
+			for repo in &owner.get_repo_names() {
+				if repo_paths.contains(&repo) {
+					println!("{:?}", &repo);
 
-				shared_repos.push(single_repo);
-			}	
+					shared_repos.push(repo.clone());
+				}
+			}
 		}
 
 		/*
