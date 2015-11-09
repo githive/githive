@@ -29,7 +29,7 @@ impl OwnerTree {
 
 			repo_names.push(repo_path);
 		}
-		return (repo_names);
+		return repo_names;
 	}
 }
 

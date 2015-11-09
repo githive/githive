@@ -11,7 +11,7 @@ use message_structures;
 use streamutils;
 use shared_constants::{CLIENT_NAME, CLIENT_VERSION, PROTOCOL_NAME, PROTOCOL_VERSION};
 use file_manager::SingleFileManager;
-use repositories::{OwnerTree, RepositoryTree};
+use repositories::OwnerTree;
 
 pub fn initiate_outgoing_peer_connection (ip_string: &str, port_number: u16) -> Result<(), Error> {
     let stream = try!(TcpStream::connect((ip_string, port_number)));
@@ -72,7 +72,7 @@ impl PeerConnection {
 		let stream_clone = self.stream.try_clone().unwrap();
 		let stream_pump_thread = thread::spawn(move || streamutils::TcpStreamPump::start_pumping_message_to_channel(stream_clone, tx_clone));
 
-		let mut repositories = vec![];
+		let mut repositories;
 
 		if is_incoming {
 			// Accept incoming SwarmConfigurationMessage here, before sending our own.
@@ -89,16 +89,16 @@ impl PeerConnection {
 		in from the file system as a tree-like structure.
 		*/
 
-		let mut x = vec![];
+		let mut owners = vec![];
 
-		let mut y = OwnerTree{
+		let mut owner_instance = OwnerTree{
 			owner: String::from("test"),
 			repositories: vec![],
 		};
 
-		y.add_repo(String::from("repo"));
+		try!(owner_instance.add_repo(String::from("repo")));
 
-		x.push(y);
+		owners.push(owner_instance);
 
 		let repo_paths: Vec<String> = repositories
 			.iter()
@@ -109,7 +109,7 @@ impl PeerConnection {
 
 		println!("We share these repositories in common: ");
 
-		for owner in x {
+		for owner in owners {
 			for repo in &owner.get_repo_names() {
 				if repo_paths.contains(&repo) {
 					println!("{:?}", &repo);
@@ -131,7 +131,7 @@ impl PeerConnection {
 			repo_data_path.push('/');
 			repo_data_path.push_str(&String::from("test_file.txt"));
 			if is_incoming {
-				SingleFileManager::new(&repo_data_path);	
+				try!(SingleFileManager::new(&repo_data_path));
 			}
 		}
 
@@ -196,6 +196,9 @@ impl PeerConnection {
 				client_version,
 				repositories,
 			} => {
+				if String::from_utf8(client_name).unwrap() != CLIENT_NAME || String::from_utf8(client_version).unwrap() != CLIENT_VERSION {
+					return Err(Error::UnknownMessageType);
+				}
 				println!("Received Swarm Config.");
 
 				/* 
@@ -220,7 +223,10 @@ impl PeerConnection {
 		match message {
 			message_structures::Message::RepositoryIndexMessage{
 				directories,
-			} => println!("Got a repo index message."),
+			} => {
+				println!("Got a repo index message.")
+				
+			},
 			_ => return Err(Error::UnknownMessageType),
 		}
 		// message.print_details();
