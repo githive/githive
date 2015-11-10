@@ -7,7 +7,7 @@ use self::time::Timespec;
 use std::net::TcpStream;
 
 use errors::Error;
-use streamutils::read_bytes_from_stream;
+use super::streamutils::read_bytes_from_stream;
 
 pub enum Message {
 	SwarmConfigurationMessage {

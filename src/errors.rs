@@ -3,7 +3,7 @@ extern crate byteorder;
 use std::{convert, io, any};
 use std::sync::mpsc::{SendError, RecvError};
 
-use message_structures::Message;
+use network::message_structures::Message;
 
 #[derive(Debug)]
 pub enum Error {

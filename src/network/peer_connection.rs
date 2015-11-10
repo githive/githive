@@ -7,10 +7,10 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 
 use errors::Error;
-use message_structures;
-use streamutils;
+use super::message_structures;
+use super::streamutils;
 use shared_constants::{CLIENT_NAME, CLIENT_VERSION, PROTOCOL_NAME, PROTOCOL_VERSION};
-use file_manager::SingleFileManager;
+use files::file_manager::SingleFileManager;
 use repositories::OwnerTree;
 
 pub fn initiate_outgoing_peer_connection (ip_string: &str, port_number: u16) -> Result<(), Error> {
@@ -225,7 +225,7 @@ impl PeerConnection {
 				directories,
 			} => {
 				println!("Got a repo index message.")
-				
+
 			},
 			_ => return Err(Error::UnknownMessageType),
 		}

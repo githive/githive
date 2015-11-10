@@ -1,5 +1,5 @@
 [package]
-name = "git-hive-protocol"
+name = "git_hive_protocol"
 description = """
 A simple library for managing a custom Block Exchange Protocol (BEP).
 This BEP manages git repository data and ensures synchronization across peers.

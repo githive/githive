@@ -8,7 +8,7 @@ use std::net::TcpStream;
 use std::sync::mpsc::Sender;
 
 use errors::Error;
-use message_structures::Message;
+use super::message_structures::Message;
 use shared_constants::{PROTOCOL_NAME, PROTOCOL_VERSION};
 
 pub fn read_bytes_from_stream(stream: &TcpStream, number_of_bytes: u32) -> Result<Vec<u8>, Error> {
