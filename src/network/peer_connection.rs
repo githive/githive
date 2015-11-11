@@ -5,13 +5,14 @@ use std::io::prelude::*;
 use std::net::{Shutdown, TcpStream};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
+use std::path::Path;
 
 use errors::Error;
-use message_structures;
-use streamutils;
+use super::message_structures;
+use super::streamutils;
 use shared_constants::{CLIENT_NAME, CLIENT_VERSION, PROTOCOL_NAME, PROTOCOL_VERSION};
-use file_manager::SingleFileManager;
-use repositories::OwnerTree;
+use files::file_manager::SingleFileManager;
+use repositories::parse_owners_with_repos_from_folder;
 
 pub fn initiate_outgoing_peer_connection (ip_string: &str, port_number: u16) -> Result<(), Error> {
     let stream = try!(TcpStream::connect((ip_string, port_number)));
@@ -89,16 +90,7 @@ impl PeerConnection {
 		in from the file system as a tree-like structure.
 		*/
 
-		let mut owners = vec![];
-
-		let mut owner_instance = OwnerTree{
-			owner: String::from("test"),
-			repositories: vec![],
-		};
-
-		try!(owner_instance.add_repo(String::from("repo")));
-
-		owners.push(owner_instance);
+		let mut owners = try!(parse_owners_with_repos_from_folder(Path::new("data")));
 
 		let repo_paths: Vec<String> = repositories
 			.iter()
@@ -225,7 +217,7 @@ impl PeerConnection {
 				directories,
 			} => {
 				println!("Got a repo index message.")
-				
+
 			},
 			_ => return Err(Error::UnknownMessageType),
 		}

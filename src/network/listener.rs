@@ -2,7 +2,7 @@ use std::net::{TcpListener, TcpStream};
 use std::thread;
 use std::thread::JoinHandle;
 
-use peer_connection;
+use super::peer_connection;
 
 pub fn start_listening_for_peers(port: u16) -> JoinHandle<()> {
 	let tcp_listener = TcpListener::bind(("0.0.0.0", port)).unwrap();

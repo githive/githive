@@ -3,15 +3,17 @@ extern crate time as time;
 extern crate byteorder;
 
 mod errors;
-mod listener;
-mod message_structures;
-mod streamutils;
-mod shared_constants;
-mod peer_connection;
-mod file_manager;
+mod files;
+mod network;
+use network::{listener, peer_connection};
 mod repositories;
+mod shared_constants;
 
 fn main() {
+
+    // Get a listing of the owners + repos in our local data folder.
+
+
 
     // Index file system objects to build local model.
 
